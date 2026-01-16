@@ -37,19 +37,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
-// Tangani aksi delete
 if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['id'])) {
-    $id = $_GET['id'];
+    $id = trim($_GET['id']);
     
     if (!empty($id)) {
+        if (!isset($_GET['confirm']) || $_GET['confirm'] !== 'yes') {
+            echo '<script>
+            if(confirm("Apakah Anda yakin ingin menghapus pesanan ini?\\n\\nTindakan ini akan menghapus data pesanan secara permanen dan tidak dapat dikembalikan.")) {
+                window.location.href = "orders.php?action=delete&id=' . urlencode($id) . '&confirm=yes";
+            } else {
+                window.location.href = "orders.php";
+            }
+            </script>';
+            exit;
+        }
+        
         $result = supabase('orders', 'DELETE', null, [
             'id' => 'eq.' . $id
         ]);
         
-        if (isset($result['error'])) {
-            $_SESSION['error'] = 'Gagal menghapus pesanan: ' . $result['error']['message'];
-        } else {
+        // PERBAIKAN: Gunakan pengecekan yang sesuai
+        if ($result['success']) {
             $_SESSION['success'] = 'Pesanan berhasil dihapus!';
+        } else {
+            $_SESSION['error'] = 'Gagal menghapus pesanan: ' . 
+                                 (!empty($result['error']) ? $result['error'] : 'Terjadi kesalahan tidak diketahui');
         }
         
         header('Location: orders.php');
@@ -90,10 +102,7 @@ if (!empty($dateTo)) {
 // Get orders
 $orders = supabase('orders', 'GET', null, $params);
 
-// Debug: Cek struktur data
-error_log("Orders Data Structure: " . print_r($orders, true));
-
-// Count by status - Perbaikan: cek apakah data ada
+// **PERBAIKAN: Inisialisasi dengan benar**
 $statusCounts = [
     'all' => 0,
     'pending' => 0,
@@ -104,16 +113,25 @@ $statusCounts = [
     'cancelled' => 0
 ];
 
+// **PERBAIKAN: Cek struktur data dengan benar**
 if (isset($orders['data']) && is_array($orders['data'])) {
     $statusCounts['all'] = count($orders['data']);
     foreach ($orders['data'] as $order) {
-        if (is_array($order)) {
-            $status = strtolower($order['status'] ?? 'pending');
-            if (isset($statusCounts[$status])) {
+        // Pastikan $order adalah array
+        if (is_array($order) && isset($order['status'])) {
+            $status = strtolower($order['status']);
+            
+            // **PERBAIKAN: Gunakan array_key_exists untuk cek key**
+            if (array_key_exists($status, $statusCounts)) {
                 $statusCounts[$status]++;
             }
         }
     }
+}
+
+// **PERBAIKAN: Jika $orders bukan array, set sebagai array kosong**
+if (!isset($orders['data']) || !is_array($orders['data'])) {
+    $orders['data'] = [];
 }
 ?>
 
@@ -248,11 +266,15 @@ if (isset($orders['data']) && is_array($orders['data'])) {
                         <h5 class="mb-0">Daftar Pesanan</h5>
                         <div>
                             <span class="text-muted me-3">Total: <?= $statusCounts['all'] ?> pesanan</span>
+                            <!-- **PERBAIKAN: Tambahkan Export Button -->
+                            <button class="btn btn-sm btn-success" onclick="exportOrders()">
+                                <i class="fas fa-download me-1"></i> Export
+                            </button>
                         </div>
                     </div>
                 </div>
                 <div class="card-body">
-                    <?php if (isset($orders['data']) && is_array($orders['data']) && count($orders['data']) > 0): ?>
+                    <?php if (count($orders['data']) > 0): ?>
                     <div class="table-responsive">
                         <table class="table table-custom table-hover">
                             <thead>
@@ -362,12 +384,11 @@ if (isset($orders['data']) && is_array($orders['data'])) {
                                                 <i class="fas fa-edit"></i>
                                             </button>
                                             
-                                            <!-- Delete Button -->
-                                            <a href="orders.php?action=delete&id=<?= urlencode($orderId) ?>" 
-                                               class="btn btn-outline-danger"
-                                               onclick="return confirmDelete()">
+                                            <!-- **PERBAIKAN: Delete Button dengan modal konfirmasi -->
+                                            <button type="button" class="btn btn-outline-danger"
+                                                    onclick="confirmDeleteOrder('<?= urlencode($orderId) ?>', '<?= addslashes($customerName) ?>', '<?= addslashes($productName) ?>')">
                                                 <i class="fas fa-trash"></i>
-                                            </a>
+                                            </button>
                                         </div>
                                         
                                         <!-- Detail Modal -->
@@ -432,6 +453,20 @@ if (isset($orders['data']) && is_array($orders['data'])) {
                                                                         </td>
                                                                     </tr>
                                                                 </table>
+                                                            </div>
+                                                        </div>
+                                                        <!-- **PERBAIKAN: Tambahkan tombol hapus di detail modal -->
+                                                        <div class="alert alert-danger mt-3">
+                                                            <div class="d-flex justify-content-between align-items-center">
+                                                                <div>
+                                                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                                                    <strong>Hapus Pesanan</strong><br>
+                                                                    <small>Tindakan ini tidak dapat dibatalkan. Hapus hanya jika benar-benar diperlukan.</small>
+                                                                </div>
+                                                                <button type="button" class="btn btn-danger btn-sm"
+                                                                        onclick="confirmDeleteOrder('<?= urlencode($orderId) ?>', '<?= addslashes($customerName) ?>', '<?= addslashes($productName) ?>', true)">
+                                                                    <i class="fas fa-trash me-1"></i> Hapus Pesanan
+                                                                </button>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -645,9 +680,45 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 5000);
 });
 
-// Confirm sebelum hapus
-function confirmDelete() {
-    return confirm('Apakah Anda yakin ingin menghapus pesanan ini? Tindakan ini tidak dapat dibatalkan.');
+// **PERBAIKAN: Fungsi konfirmasi hapus yang lebih baik**
+function confirmDeleteOrder(orderId, customerName, productName, fromModal = false) {
+    // Buat pesan konfirmasi
+    var message = "Apakah Anda yakin ingin menghapus pesanan ini?\n\n";
+    message += "Pelanggan: " + customerName + "\n";
+    message += "Produk: " + productName + "\n\n";
+    message += "Tindakan ini akan menghapus data pesanan secara permanen dan tidak dapat dikembalikan.\n\n";
+    message += "Tekan OK untuk hapus, atau Cancel untuk batal.";
+    
+    if (confirm(message)) {
+        // Jika konfirmasi dari modal, close modal dulu
+        if (fromModal) {
+            var modal = bootstrap.Modal.getInstance(document.querySelector('.modal.show'));
+            if (modal) {
+                modal.hide();
+            }
+            setTimeout(function() {
+                window.location.href = "orders.php?action=delete&id=" + orderId + "&confirm=yes";
+            }, 500);
+        } else {
+            window.location.href = "orders.php?action=delete&id=" + orderId + "&confirm=yes";
+        }
+    }
+}
+
+// **PERBAIKAN: Tambahkan fungsi export**
+function exportOrders() {
+    var statusFilter = "<?= $statusFilter ?>";
+    var searchQuery = "<?= $searchQuery ?>";
+    var dateFrom = "<?= $dateFrom ?>";
+    var dateTo = "<?= $dateTo ?>";
+    
+    var exportUrl = "export_orders.php?";
+    if (statusFilter) exportUrl += "status=" + encodeURIComponent(statusFilter) + "&";
+    if (searchQuery) exportUrl += "search=" + encodeURIComponent(searchQuery) + "&";
+    if (dateFrom) exportUrl += "date_from=" + encodeURIComponent(dateFrom) + "&";
+    if (dateTo) exportUrl += "date_to=" + encodeURIComponent(dateTo);
+    
+    window.open(exportUrl, '_blank');
 }
 
 // Auto-focus pada select saat modal status dibuka

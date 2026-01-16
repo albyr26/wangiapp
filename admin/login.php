@@ -439,7 +439,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 <div class="hint-box">
                     <i class="fas fa-lightbulb"></i>
-                    <p>Gunakan username: <strong>admin</strong> dan password: <strong>admin123</strong> untuk login</p>
+                    <!-- <p>Gunakan username: <strong>admin</strong> dan password: <strong>admin123</strong> untuk login</p> -->
                 </div>
             </form>
 

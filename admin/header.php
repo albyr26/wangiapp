@@ -11,10 +11,40 @@ if (!isset($_SESSION["admin_logged_in"])) {
 // Get stats for sidebar
 $products = supabase("products", "GET", null, ["select" => "count"]);
 $orders = supabase("orders", "GET", null, ["select" => "count"]);
-$customers = supabase("cust_customers", "GET", null, ["select" => "count"]);
+
+// **PERBAIKAN: HITUNG PELANGGAN DARI ORDERS (sama seperti di customers.php)**
+$all_orders = supabase('orders', 'GET', null, [
+    'select' => 'customer_name, customer_phone',
+    'limit' => 1000
+]);
 
 $orderCount = $orders["data"][0]["count"] ?? 0;
-$customerCount = $customers["data"][0]["count"] ?? 0;
+
+// Hitung pelanggan unik dari orders
+$customerCount = 0;
+$uniqueCustomers = [];
+
+if (isset($all_orders['data']) && is_array($all_orders['data'])) {
+    foreach ($all_orders['data'] as $order) {
+        if (!is_array($order)) continue;
+        
+        $name = trim($order['customer_name'] ?? '');
+        $phone = trim($order['customer_phone'] ?? '');
+        
+        // Skip jika tidak ada nama atau telepon
+        if (empty($name) || empty($phone)) {
+            continue;
+        }
+        
+        // Buat key unik dari kombinasi nama dan telepon
+        $key = md5($name . '_' . $phone);
+        
+        if (!isset($uniqueCustomers[$key])) {
+            $uniqueCustomers[$key] = true;
+        }
+    }
+    $customerCount = count($uniqueCustomers);
+}
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -205,6 +235,32 @@ $customerCount = $customers["data"][0]["count"] ?? 0;
             font-weight: 600;
         }
 
+        /* Animasi untuk auto-hide alerts */
+        .alert-auto-hide {
+            animation: fadeOut 0.5s ease 5s forwards;
+            opacity: 1;
+        }
+
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateY(-10px);
+                max-height: 0;
+                padding: 0;
+                margin: 0;
+                overflow: hidden;
+            }
+        }
+
+        /* Untuk alert yang ingin permanen (jangan auto-hide) */
+        .alert-permanent {
+            animation: none !important;
+        }
+
         @media (max-width: 768px) {
             .sidebar {
                 width: 100%;
@@ -215,34 +271,6 @@ $customerCount = $customers["data"][0]["count"] ?? 0;
                 margin-left: 0;
             }
         }
-    </style>
-    <!-- Di header.php dalam tag <style> -->
-    <style>
-    /* Animasi untuk auto-hide alerts */
-    .alert-auto-hide {
-        animation: fadeOut 0.5s ease 5s forwards;
-        opacity: 1;
-    }
-
-    @keyframes fadeOut {
-        from {
-            opacity: 1;
-            transform: translateY(0);
-        }
-        to {
-            opacity: 0;
-            transform: translateY(-10px);
-            max-height: 0;
-            padding: 0;
-            margin: 0;
-            overflow: hidden;
-        }
-    }
-
-    /* Untuk alert yang ingin permanen (jangan auto-hide) */
-    .alert-permanent {
-        animation: none !important;
-    }
     </style>
 </head>
 <body>
