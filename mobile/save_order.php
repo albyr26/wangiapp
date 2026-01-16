@@ -371,59 +371,69 @@ function reduceProductStock($productId, $quantity)
     try {
         log_debug("Reducing stock for $productId by $quantity");
 
-        // Get current stock
+        // Get current stock - GANTI format parameter
         $productResult = supabase(
-            "cust_products",
-            "GET",
-            [],
+            "cust_products", 
+            "GET", 
+            null,  // Ganti [] dengan null
             [
                 "select" => "id,stock",
-                "eq.id" => $productId,
-                "limit" => 1,
-            ],
+                "id" => "eq." . $productId,  // GANTI format ini
+                "limit" => 1
+            ]
         );
 
-        if (
-            isset($productResult["success"]) &&
-            $productResult["success"] &&
-            !empty($productResult["data"])
-        ) {
-            $currentStock = intval($productResult["data"][0]["stock"] ?? 0);
+        log_debug("Get product result: " . json_encode($productResult));
+
+        if (isset($productResult['data']) && count($productResult['data']) > 0) {
+            $currentStock = intval($productResult['data'][0]['stock'] ?? 0);
             $newStock = $currentStock - $quantity;
 
             if ($newStock < 0) {
-                log_debug(
-                    "Stock insufficient: $currentStock - $quantity = $newStock",
-                );
-                return false;
+                log_debug("Stock insufficient: $currentStock - $quantity = $newStock");
+                // Buat record adjustment negative untuk tracking
+                createStockAdjustment($productId, -$quantity, $currentStock, "Penjualan melebihi stok");
+                $newStock = 0; // Set ke 0 minimal
             }
 
-            // Update stock
+            // Update stock - GANTI format seperti di inventory.php
             $updateResult = supabase(
-                "cust_products",
-                "PATCH",
+                "cust_products", 
+                "PATCH", 
                 [
                     "stock" => $newStock,
-                ],
+                    "updated_at" => date('Y-m-d H:i:s')
+                ], 
                 [
-                    "eq" => ["id" => $productId],
-                ],
+                    "id" => "eq." . $productId  // GANTI format ini
+                ]
             );
 
-            if (isset($updateResult["success"]) && $updateResult["success"]) {
-                log_debug(
-                    "Stock updated successfully from $currentStock to $newStock",
-                );
+            log_debug("Update stock result: " . json_encode($updateResult));
+
+            if (!isset($updateResult['error'])) {
+                // Tambah history stok seperti di inventory.php
+                $history_data = [
+                    'product_id' => $productId,
+                    'type' => 'sale',
+                    'quantity' => -$quantity, // negatif karena pengurangan
+                    'previous_stock' => $currentStock,
+                    'new_stock' => $newStock,
+                    'notes' => 'Penjualan produk',
+                    'created_by' => 'system', // atau customer name jika ada
+                    'created_at' => date('Y-m-d H:i:s')
+                ];
+                
+                $historyResult = supabase('stock_history', 'POST', $history_data);
+                log_debug("History save result: " . json_encode($historyResult));
+                
+                log_debug("Stock updated successfully from $currentStock to $newStock");
                 return true;
             } else {
-                log_debug(
-                    "Failed to update stock: " . json_encode($updateResult),
-                );
+                log_debug("Failed to update stock: " . json_encode($updateResult));
             }
         } else {
-            log_debug(
-                "Product not found or error: " . json_encode($productResult),
-            );
+            log_debug("Product not found: $productId");
         }
 
         return false;
@@ -433,6 +443,24 @@ function reduceProductStock($productId, $quantity)
     }
 }
 
+// Fungsi bantuan untuk adjustment negative
+function createStockAdjustment($productId, $quantity, $currentStock, $notes)
+{
+    $newStock = max(0, $currentStock + $quantity); // quantity bisa negatif
+    
+    $history_data = [
+        'product_id' => $productId,
+        'type' => 'adjustment',
+        'quantity' => $quantity,
+        'previous_stock' => $currentStock,
+        'new_stock' => $newStock,
+        'notes' => $notes,
+        'created_by' => 'system_auto',
+        'created_at' => date('Y-m-d H:i:s')
+    ];
+    
+    return supabase('stock_history', 'POST', $history_data);
+}
 // Test function supabase - tambahkan ini untuk debugging
 function testSupabaseConnection()
 {
