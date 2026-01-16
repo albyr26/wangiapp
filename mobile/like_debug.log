@@ -1,0 +1,81 @@
+2026-01-10 01:52:43 - Request received
+Raw data: {"product_id":"b17e3ed7-f1cd-4bdc-8233-86dcf2016372","delta":1}
+Processing: product_id=b17e3ed7-f1cd-4bdc-8233-86dcf2016372, delta=1
+Update data: Array
+(
+    [likes_count] => likes_count + 1
+)
+
+Supabase result: Array
+(
+    [success] => 
+    [code] => 400
+    [data] => Array
+        (
+            [code] => 22P02
+            [details] => 
+            [hint] => 
+            [message] => invalid input syntax for type integer: "likes_count + 1"
+        )
+
+    [raw] => {"code":"22P02","details":null,"hint":null,"message":"invalid input syntax for type integer: \"likes_count + 1\""}
+    [error] => 
+    [url] => https://iukwrvjdjdzurctlotea.supabase.co/rest/v1/cust_products?id=eq.b17e3ed7-f1cd-4bdc-8233-86dcf2016372
+    [time] => 0.52233
+)
+
+Supabase error: 
+2026-01-10 01:55:37 - Request received
+Raw data: {"product_id":"b17e3ed7-f1cd-4bdc-8233-86dcf2016372","delta":1}
+Processing: product_id=b17e3ed7-f1cd-4bdc-8233-86dcf2016372, delta=1
+Update data: Array
+(
+    [likes_count] => likes_count + 1
+)
+
+Supabase result: Array
+(
+    [success] => 
+    [code] => 400
+    [data] => Array
+        (
+            [code] => 22P02
+            [details] => 
+            [hint] => 
+            [message] => invalid input syntax for type integer: "likes_count + 1"
+        )
+
+    [raw] => {"code":"22P02","details":null,"hint":null,"message":"invalid input syntax for type integer: \"likes_count + 1\""}
+    [error] => 
+    [url] => https://iukwrvjdjdzurctlotea.supabase.co/rest/v1/cust_products?id=eq.b17e3ed7-f1cd-4bdc-8233-86dcf2016372
+    [time] => 0.319788
+)
+
+Supabase error: 
+2026-01-10 01:56:29 - Request received
+Raw data: {"product_id":"6f4cdbf0-8826-428c-9ad9-e9430864787b","delta":1}
+Processing: product_id=6f4cdbf0-8826-428c-9ad9-e9430864787b, delta=1
+Update data: Array
+(
+    [likes_count] => likes_count + 1
+)
+
+Supabase result: Array
+(
+    [success] => 
+    [code] => 400
+    [data] => Array
+        (
+            [code] => 22P02
+            [details] => 
+            [hint] => 
+            [message] => invalid input syntax for type integer: "likes_count + 1"
+        )
+
+    [raw] => {"code":"22P02","details":null,"hint":null,"message":"invalid input syntax for type integer: \"likes_count + 1\""}
+    [error] => 
+    [url] => https://iukwrvjdjdzurctlotea.supabase.co/rest/v1/cust_products?id=eq.6f4cdbf0-8826-428c-9ad9-e9430864787b
+    [time] => 0.452967
+)
+
+Supabase error: 
